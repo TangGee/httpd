@@ -23,6 +23,10 @@ pthread.h
 -
 unistd.h
 -
+assert.h
+-
+ctype.h
+-
 httpd.h
 /Users/tangtang/ClionProjects/myhttpd/httpd.h
 
