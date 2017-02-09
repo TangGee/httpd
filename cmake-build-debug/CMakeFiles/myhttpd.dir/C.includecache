@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/tangtang/ClionProjects/myhttpd/httpd.c
+stdio.h
+-
+netinet/in.h
+-
+sys/types.h
+-
+stdlib.h
+-
+string.h
+-
+sys/socket.h
+-
+pthread.h
+-
+unistd.h
+-
+httpd.h
+/Users/tangtang/ClionProjects/myhttpd/httpd.h
+
+/Users/tangtang/ClionProjects/myhttpd/httpd.h
+evdns.h
+-
+
