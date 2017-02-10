@@ -24,7 +24,7 @@ int main() {
     pthread_t thread;
 
 
-    port = 3000;
+    port = 7000;
     ser_sock = start_up(&port);
     printf("listen port:%u",port);
 
@@ -47,7 +47,6 @@ int main() {
 void handle_request(void *arg){
     int client = *(int * )arg;
     char buf[1024];
-    char method[255];
     request request;
 
     if(readline(client,buf, sizeof(buf))>0){
@@ -61,7 +60,7 @@ void handle_request(void *arg){
     printf("method: %s , protocol: %s , path: %s , querystring: %s",
            request.method,request.version,request.path,request.queryString?request.queryString:"");
 
-    if (strlen(request.queryString)>0|| strcasecmp(request.method,"POST")){
+    if (strlen(request.queryString)>0|| strcasecmp(request.method,"POST")==0){
         execute_cgi(client,&request);
     }else {
         execute_file(client,&request);
@@ -78,23 +77,23 @@ void execute_file(int client, request *pRequest) {
 
     char filepath[1024];
     int pathLen = strlen(pRequest->path);
+    int filepathsize = sizeof(filepath);
     if (pathLen == 0) {
-        snprintf(filepath, sizeof(filepath), WEB_ROOT
-                "/index.html");
+        snprintf(filepath, sizeof(filepath), WEB_ROOT"/index.html");
     } else {
-        int count = snprintf(filepath, sizeof(filepath), WEB_ROOT
-                "/", pRequest->path);
-        int limit = sizeof(filepath) - count;
-        if (filepath[count - 1] == '/') {
-            snprintf(filepath, limit, "index.html");
+        strncat(filepath,WEB_ROOT"/",filepathsize-strlen(filepath));
+        strncat(filepath,pRequest->path,filepathsize-strlen(filepath));
+
+        if (filepath[strlen(filepath)-1] == '/') {
+            strncat(filepath,"index.html",filepathsize-strlen(filepath));
         }
     }
 
-    if (stat(&filepath, &st) == -1) {
+    if (stat(filepath, &st) == -1) {
         while (readline(client, buf, sizeof(buf)) > 0) {
         }
 
-        not_found(client, &pRequest->path);
+        not_found(client, pRequest->path);
         return;
     }
 
@@ -106,17 +105,31 @@ void execute_file(int client, request *pRequest) {
         return;
     }
 
-    //TODO header
+    headers(client, filepath);
 
     if (st.st_size>0)
-        cat_file(client,&filepath);
+        cat_file(client,filepath);
+    //TODO 是否需要发送'\0
+}
+
+void headers(int fd, const char *filename){
+    char buf[1024];
+    strcpy(buf, "HTTP/1.0 200 OK\r\n");
+    send(fd,buf,strlen(buf),0);
+    strcpy(buf, ASERVER_STRING);
+    send(fd,buf,strlen(buf),0);
+    sprintf(buf, "Content-Type: text/html\r\n");
+    send(fd,buf,strlen(buf),0);
+    strcpy(buf, "\r\n");
+    send(fd,buf,strlen(buf),0);
+
 }
 
 
 void cat_file(int client, const char *path){
 
     char buf[1024];
-    FILE *file = fopen(path,'r');
+    FILE *file = fopen(path,"r");
 
     if (!file)
         return;
@@ -127,11 +140,37 @@ void cat_file(int client, const char *path){
         fgets(buf, sizeof(buf), file);
     }
 
-    send(client,'\0', sizeof(char),0);
-    close(file);
+    send(client,"\0", sizeof(char),0);
+    fclose(file);
 }
 
-void not_found(int ,const char *);
+void not_found(int fd,const char *path){
+
+    assert(path);
+
+    char buf[1024];
+    strcpy(buf, "HTTP/1.0 404 NOT FOUND\r\n");
+    send(fd,buf,strlen(buf),0);
+    strcpy(buf, ASERVER_STRING);
+    send(fd,buf,strlen(buf),0);
+    sprintf(buf, "Content-Type: text/html\r\n");
+    send(fd,buf,strlen(buf),0);
+    strcpy(buf, "\r\n");
+    send(fd,buf,strlen(buf),0);
+
+    sprintf(buf, "<HTML><TITLE>Not Found</TITLE>\r\n");
+    send(fd, buf, strlen(buf), 0);
+    sprintf(buf, "<BODY><H1>Not FOUND</H1></P>\r\n");
+    send(fd, buf, strlen(buf), 0);
+    sprintf(buf, "your request a fake website\r\n");
+    send(fd, buf, strlen(buf), 0);
+    sprintf(buf, "你请求了个假网站.\r\n");
+    send(fd, buf, strlen(buf), 0);
+    sprintf(buf,"%s",path);
+    send(fd, buf, strlen(buf), 0);
+    sprintf(buf, "</BODY></HTML>\r\n");
+    send(fd, buf, strlen(buf), 0);
+}
 
 void execute_cgi(int client, request *pRequest) {
 
@@ -143,18 +182,18 @@ int parseStatusLine(request *request,const char *buf) {
 
     int i =0,pos =0;
 
-    while (!isspace(buf[i])&&buf[i]!=NULL){
+    while (!isspace(buf[i])&&buf[i]!='\0'){
         request->method[pos++] = buf[i++];
     }
 
     request->method[pos] = '\0';
-    if (buf[i] == NULL){
+    if (buf[i] == '\0'){
         return  -1;
     }
 
     pos =0;
     i++;
-    while (!isspace(buf[i])&&buf[i]!=NULL&&buf[i]!='?'){
+    while (!isspace(buf[i])&&buf[i]!='\0'&&buf[i]!='?'){
         request->path[pos++] = buf[i++];
     }
     request->path[pos] = '\0';
@@ -162,20 +201,20 @@ int parseStatusLine(request *request,const char *buf) {
 
     if (buf[i]=='?'){
         i++;
-        while (!isspace(buf[i])&&buf[i]!=NULL){
+        while (!isspace(buf[i])&&buf[i]!='\0'){
             request->queryString[pos++] = buf[i++];
         }
     }
 
     request->queryString[pos] ='\0';
 
-    if (buf[i] == NULL){
+    if (buf[i] == '\0'){
         return  -1;
     }
 
     i++;
     pos =0;
-    while (!isspace(buf[i])&&buf[i]!=NULL&&buf[i]!='\n'){
+    while (!isspace(buf[i])&&buf[i]!='\0'&&buf[i]!='\n'){
         request->version[pos++] = buf[i++];
     }
     request->version[pos] = '\0';

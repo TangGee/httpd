@@ -8,6 +8,7 @@
 #define MYHTTPD_HTTPD_H
 
 #define WEB_ROOT "webroot"
+#define ASERVER_STRING "xhttpd"
 
 typedef struct request{
     char method[255];
@@ -20,11 +21,12 @@ typedef struct request{
 int start_up(u_short *);
 void err_exit(const char *);
 void handle_request(void *);
-int readline(int fd,char *buf,size_t size);
+int readline(int ,char *,size_t );
 int parseStatusLine(request *, const char *);
-void execute_file(int client, request *pRequest);
-void execute_cgi(int client, request *pRequest);
+void execute_file(int , request *);
+void execute_cgi(int , request *);
 void cat_file(int , const char * );
 void not_found(int ,const char *);
+void headers(int , const char *);
 
 #endif //MYHTTPD_HTTPD_H

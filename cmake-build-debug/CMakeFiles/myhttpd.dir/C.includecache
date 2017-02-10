@@ -29,6 +29,8 @@ ctype.h
 -
 httpd.h
 /Users/tangtang/ClionProjects/myhttpd/httpd.h
+sys/stat.h
+-
 
 /Users/tangtang/ClionProjects/myhttpd/httpd.h
 evdns.h
