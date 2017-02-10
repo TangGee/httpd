@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include "httpd.h"
 #include <sys/stat.h>
+#include <errno.h>
 
 void execute_cgi(int client, request *pRequest);
 
@@ -24,14 +25,18 @@ int main() {
     pthread_t thread;
 
 
-    port = 7000;
+    port = 8080;
     ser_sock = start_up(&port);
     printf("listen port:%u",port);
 
     socklen = sizeof(client_addr);
     while (1){
         client_sock = accept(ser_sock,(struct sockaddr *)&client_addr,&socklen);
+
         if (client_sock<0){
+            if (errno == EINTR) {
+                continue;
+            }
             err_exit("accept");
         }
 
@@ -81,7 +86,7 @@ void execute_file(int client, request *pRequest) {
     if (pathLen == 0) {
         snprintf(filepath, sizeof(filepath), WEB_ROOT"/index.html");
     } else {
-        strncat(filepath,WEB_ROOT"/",filepathsize-strlen(filepath));
+        strncat(filepath,WEB_ROOT,filepathsize-strlen(filepath));
         strncat(filepath,pRequest->path,filepathsize-strlen(filepath));
 
         if (filepath[strlen(filepath)-1] == '/') {
@@ -90,7 +95,7 @@ void execute_file(int client, request *pRequest) {
     }
 
     if (stat(filepath, &st) == -1) {
-        while (readline(client, buf, sizeof(buf)) > 0) {
+        while (readline(client, buf, sizeof(buf)) > 0 && strcmp(buf,"\n")!=0) {
         }
 
         not_found(client, pRequest->path);
@@ -135,7 +140,7 @@ void cat_file(int client, const char *path){
         return;
 
     fgets(buf, sizeof(buf),file);
-    while (feof(file)){
+    while (!feof(file)){
         send(client,buf, strlen(buf),0);
         fgets(buf, sizeof(buf), file);
     }
@@ -279,13 +284,8 @@ int readline(int fd,char *buf,size_t size){
 
     int count =0;
 
-    n = recv(fd,&c,sizeof(c),0);
-    if (n<0){
-        return -1;
-    }
-    buf[count++]= c;
 
-    while (count<size-1 && c!='\n'){
+    do {
         n = recv(fd,&c, sizeof(c),0);
         if (n>0){
             if (c=='\r'){
@@ -301,7 +301,8 @@ int readline(int fd,char *buf,size_t size){
             c = '\n';
         }
         buf[count++] = c;
-    }
+    }while (count<size-1 && c!='\n');
+
     buf[count++]='\0';
 
     return count;

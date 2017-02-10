@@ -7,7 +7,7 @@
 #ifndef MYHTTPD_HTTPD_H
 #define MYHTTPD_HTTPD_H
 
-#define WEB_ROOT "webroot"
+#define WEB_ROOT "/Users/tangtang/ClionProjects/myhttpd/webroot"
 #define ASERVER_STRING "xhttpd"
 
 typedef struct request{

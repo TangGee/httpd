@@ -31,6 +31,8 @@ httpd.h
 /Users/tangtang/ClionProjects/myhttpd/httpd.h
 sys/stat.h
 -
+errno.h
+-
 
 /Users/tangtang/ClionProjects/myhttpd/httpd.h
 evdns.h
