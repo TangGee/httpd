@@ -12,6 +12,12 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+/**
+ * TODO 在线程中调用fork是不明知的选择，应该禁止
+ * @param client
+ * @param pRequest
+ */
+
 void execute_cgi(int client, request *pRequest);
 
 void execute_file(int client, request *pRequest);
@@ -265,10 +271,30 @@ void execute_cgi(int client, request *pRequest) {
     if (pid == 0){ //子线程
 
         char filePath[1024];
+
+        char oo[1024];
+
+        close(out_pipe[0]);
         dup2(out_pipe[1],STDOUT_FILENO);
+        close(in_pipe[1]);
         dup2(in_pipe[0],STDIN_FILENO);
+        printf("hahah");
+
         close(out_pipe[0]);
         close(in_pipe[1]);
+        dup2(out_pipe[1],STDOUT_FILENO);
+        dup2(in_pipe[0],STDIN_FILENO);
+
+
+//        sprintf(oo,"%d   %d",STDOUT_FILENO,STDIN_FILENO);
+//        FILE *file = fopen("/Users/tangtang/ClionProjects/myhttpd/webroot/testcgiss","w");
+//        fputs(oo,file);
+//        fclose(file);
+
+
+
+
+
 
         getrequestFilePath(filePath, sizeof(filePath),pRequest->path);
         snprintf(buf, sizeof(buf),"REQUEST_METHOD=%s",pRequest->method);
@@ -281,13 +307,18 @@ void execute_cgi(int client, request *pRequest) {
             snprintf(buf, sizeof(buf),"CONTENT_LENGTH＝%d", contentLen);
             putenv(buf);
         }
-        execl(filePath, NULL);
+                FILE *file = fopen("/Users/tangtang/ClionProjects/myhttpd/webroot/testcgiss","w");
+        fputs(oo,file);
+        fclose(file);
+
+        printf("hhaahhh");
+//        execl(filePath, NULL);
         exit(0);
     } else{
-
+        close(out_pipe[1]);
+        close(in_pipe[0]);
         sprintf(buf, "HTTP/1.0 200 OK\r\n");
         send(client, buf, strlen(buf), 0);
-
         //何时提前断开连接？
         if (strcasecmp(pRequest->method,"POST") ==0){
             for (int i = 0; i < contentLen; ++i) {
@@ -298,15 +329,13 @@ void execute_cgi(int client, request *pRequest) {
             }
         }
 
-        int a =read(out_pipe[0], &c, sizeof(c));
-        printf("%d",a);
         while (read(out_pipe[0], &c, sizeof(c)) > 0)
             send(client, &c, 1, 0);
 
         perror("read");
 
-        close(out_pipe[1]);
-        close(in_pipe[0]);
+        close(out_pipe[0]);
+        close(in_pipe[1]);
         waitpid(pid, &status, 0);
     }
 }
