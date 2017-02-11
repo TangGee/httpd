@@ -25,7 +25,7 @@ int main() {
     pthread_t thread;
 
 
-    port = 8080;
+    port = 0;
     ser_sock = start_up(&port);
     printf("listen port:%u",port);
 
@@ -57,7 +57,7 @@ void handle_request(void *arg){
     if(readline(client,buf, sizeof(buf))>0){
         if(parseStatusLine(&request,buf)!=0){
             snprintf(buf,sizeof(buf),"what this funck you");
-            send(client,buf,strlen(buf)+1,0);
+            send(client,buf,strlen(buf),0);
             goto clean_up;
         }
     }
@@ -67,12 +67,36 @@ void handle_request(void *arg){
 
     if (strlen(request.queryString)>0|| strcasecmp(request.method,"POST")==0){
         execute_cgi(client,&request);
-    }else {
+    }else if (strcasecmp(request.method,"GET")!=0){
+        not_implement(client);
+    }else{
         execute_file(client,&request);
     }
 clean_up:
     close(client);
 }
+
+void not_implement(int client){
+    char buf[1024];
+
+    sprintf(buf, "HTTP/1.0 501 Method Not Implemented\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, ASERVER_STRING);
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "Content-Type: text/html\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "<HTML><HEAD><TITLE>Method Not Implemented\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "</TITLE></HEAD>\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "<BODY><P>HTTP request method not supported.\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "</BODY></HTML>\r\n");
+    send(client, buf, strlen(buf), 0);
+}
+
 
 void execute_file(int client, request *pRequest) {
     assert(pRequest);
@@ -81,18 +105,7 @@ void execute_file(int client, request *pRequest) {
     char buf[1024];
 
     char filepath[1024];
-    int pathLen = strlen(pRequest->path);
-    int filepathsize = sizeof(filepath);
-    if (pathLen == 0) {
-        snprintf(filepath, sizeof(filepath), WEB_ROOT"/index.html");
-    } else {
-        strncat(filepath,WEB_ROOT,filepathsize-strlen(filepath));
-        strncat(filepath,pRequest->path,filepathsize-strlen(filepath));
-
-        if (filepath[strlen(filepath)-1] == '/') {
-            strncat(filepath,"index.html",filepathsize-strlen(filepath));
-        }
-    }
+    getrequestFilePath(filepath, sizeof(filepath),pRequest->path);
 
     if (stat(filepath, &st) == -1) {
         while (readline(client, buf, sizeof(buf)) > 0 && strcmp(buf,"\n")!=0) {
@@ -115,6 +128,27 @@ void execute_file(int client, request *pRequest) {
     if (st.st_size>0)
         cat_file(client,filepath);
     //TODO 是否需要发送'\0
+}
+
+char * getrequestFilePath(char *filepath ,size_t size,/*out*/ const char *path){
+
+    assert(filepath);
+    assert(path);
+
+    int pathLen = strlen(path);
+    int filepathsize = size;
+    if (pathLen == 0) {
+        snprintf(filepath, sizeof(filepath), WEB_ROOT"/index.html");
+    } else {
+        snprintf(filepath,filepathsize,WEB_ROOT);
+        strncat(filepath,path,filepathsize-strlen(filepath));
+
+        if (filepath[strlen(filepath)-1] == '/') {
+            strncat(filepath,"index.html",filepathsize-strlen(filepath));
+        }
+    }
+
+    return filepath;
 }
 
 void headers(int fd, const char *filename){
@@ -179,11 +213,137 @@ void not_found(int fd,const char *path){
 
 void execute_cgi(int client, request *pRequest) {
 
+    char buf[1024];
+    int n =1,status;
+    int contentLen =0;
+    int out_pipe[2]; //读入数据
+    int in_pipe[2]; //写出数据
+    pid_t  pid;
+    char c;
+
+    //get 需要QUERY_STRING＝
+    //post 需要CONTENT_LENGTH
+    if (strcasecmp(pRequest->method,"POST")==0) {
+        do{
+            n= readline(client,buf, sizeof(buf));
+            if (strcasecmp(buf,"Content-Length:") ==0 && strlen(buf)>=17){
+                contentLen = atoi(&buf[16]);
+            }
+        } while (n>0&& strcmp(buf,"\n")!=0);
+
+        if (contentLen<=0){
+            if (contentLen == -1) {
+                bad_request(client);
+                return;
+            }
+        }
+
+    } else { //GET
+        do{
+            n= readline(client,buf, sizeof(buf));
+        } while (n>0&& strcmp(buf,"\n")!=0);
+    }
+
+
+
+    if (pipe(in_pipe)==-1){
+        cannot_execute(client);
+        return;
+    }
+
+    if (pipe(out_pipe)==-1){
+        cannot_execute(client);
+        return;
+    }
+
+    if ((pid = fork())<0){
+        cannot_execute(client);
+        return;
+    }
+
+
+    if (pid == 0){ //子线程
+
+        char filePath[1024];
+        dup2(out_pipe[1],STDOUT_FILENO);
+        dup2(in_pipe[0],STDIN_FILENO);
+        close(out_pipe[0]);
+        close(in_pipe[1]);
+
+        getrequestFilePath(filePath, sizeof(filePath),pRequest->path);
+        snprintf(buf, sizeof(buf),"REQUEST_METHOD=%s",pRequest->method);
+        putenv(buf);
+
+        if (strcasecmp(pRequest->method,"GET")==0){
+            snprintf(buf, sizeof(buf),"QUERY_STRING＝%s", pRequest->queryString);
+            putenv(buf);
+        }else {
+            snprintf(buf, sizeof(buf),"CONTENT_LENGTH＝%d", contentLen);
+            putenv(buf);
+        }
+        execl(filePath, NULL);
+        exit(0);
+    } else{
+
+        sprintf(buf, "HTTP/1.0 200 OK\r\n");
+        send(client, buf, strlen(buf), 0);
+
+        //何时提前断开连接？
+        if (strcasecmp(pRequest->method,"POST") ==0){
+            for (int i = 0; i < contentLen; ++i) {
+                n = recv(client,&c, sizeof(c),0);
+                if (n>0){
+                    send(in_pipe[1],&c, sizeof(c),0);
+                }
+            }
+        }
+
+        int a =read(out_pipe[0], &c, sizeof(c));
+        printf("%d",a);
+        while (read(out_pipe[0], &c, sizeof(c)) > 0)
+            send(client, &c, 1, 0);
+
+        perror("read");
+
+        close(out_pipe[1]);
+        close(in_pipe[0]);
+        waitpid(pid, &status, 0);
+    }
+}
+
+
+void cannot_execute(int client) {
+    char buf[1024];
+
+    sprintf(buf, "HTTP/1.0 500 Internal Server Error\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "Content-type: text/html\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "\r\n");
+    send(client, buf, strlen(buf), 0);
+    sprintf(buf, "<P>Error perl CGI execution.\r\n");
+    send(client, buf, strlen(buf), 0);
+}
+
+void bad_request(int client)
+{
+    char buf[1024];
+
+    sprintf(buf, "HTTP/1.0 400 BAD REQUEST\r\n");
+    send(client, buf, sizeof(buf), 0);
+    sprintf(buf, "Content-type: text/html\r\n");
+    send(client, buf, sizeof(buf), 0);
+    sprintf(buf, "\r\n");
+    send(client, buf, sizeof(buf), 0);
+    sprintf(buf, "<P>Your browser sent a bad request, ");
+    send(client, buf, sizeof(buf), 0);
+    sprintf(buf, "such as a POST without a Content-Length.\r\n");
+    send(client, buf, sizeof(buf), 0);
 }
 
 int parseStatusLine(request *request,const char *buf) {
-    assert(request!=NULL);
-    assert(buf!=NULL);
+    assert(request);
+    assert(buf);
 
     int i =0,pos =0;
 

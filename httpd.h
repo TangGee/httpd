@@ -28,5 +28,8 @@ void execute_cgi(int , request *);
 void cat_file(int , const char * );
 void not_found(int ,const char *);
 void headers(int , const char *);
-
+void not_implement(int );
+void bad_request(int );
+void cannot_execute(int ) ;
+char * getrequestFilePath(char * ,size_t ,/*out*/ const char *);
 #endif //MYHTTPD_HTTPD_H
