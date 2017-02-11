@@ -150,6 +150,33 @@ httpd.c.s:
 	$(MAKE) -f CMakeFiles/myhttpd.dir/build.make CMakeFiles/myhttpd.dir/httpd.c.s
 .PHONY : httpd.c.s
 
+signal.o: signal.c.o
+
+.PHONY : signal.o
+
+# target to build an object file
+signal.c.o:
+	$(MAKE) -f CMakeFiles/myhttpd.dir/build.make CMakeFiles/myhttpd.dir/signal.c.o
+.PHONY : signal.c.o
+
+signal.i: signal.c.i
+
+.PHONY : signal.i
+
+# target to preprocess a source file
+signal.c.i:
+	$(MAKE) -f CMakeFiles/myhttpd.dir/build.make CMakeFiles/myhttpd.dir/signal.c.i
+.PHONY : signal.c.i
+
+signal.s: signal.c.s
+
+.PHONY : signal.s
+
+# target to generate assembly for a file
+signal.c.s:
+	$(MAKE) -f CMakeFiles/myhttpd.dir/build.make CMakeFiles/myhttpd.dir/signal.c.s
+.PHONY : signal.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -162,6 +189,9 @@ help:
 	@echo "... httpd.o"
 	@echo "... httpd.i"
 	@echo "... httpd.s"
+	@echo "... signal.o"
+	@echo "... signal.i"
+	@echo "... signal.s"
 .PHONY : help
 
 

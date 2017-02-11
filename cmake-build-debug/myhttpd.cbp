@@ -88,6 +88,12 @@
 		<Unit filename="/Users/tangtang/ClionProjects/myhttpd/httpd.h">
 			<Option target="myhttpd"/>
 		</Unit>
+		<Unit filename="/Users/tangtang/ClionProjects/myhttpd/signal.c">
+			<Option target="myhttpd"/>
+		</Unit>
+		<Unit filename="/Users/tangtang/ClionProjects/myhttpd/signal.h">
+			<Option target="myhttpd"/>
+		</Unit>
 		<Unit filename="/Users/tangtang/ClionProjects/myhttpd/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\"/>
 		</Unit>

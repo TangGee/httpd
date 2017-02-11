@@ -3,5 +3,5 @@ project(myhttpd)
 
 set(CMAKE_C_STANDARD 99)
 
-set(SOURCE_FILES httpd.c httpd.h)
+set(SOURCE_FILES httpd.c httpd.h  signal.c signal.h)
 add_executable(myhttpd ${SOURCE_FILES})

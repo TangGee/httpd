@@ -3,4 +3,8 @@
 
 CMakeFiles/myhttpd.dir/httpd.c.o: ../httpd.c
 CMakeFiles/myhttpd.dir/httpd.c.o: ../httpd.h
+CMakeFiles/myhttpd.dir/httpd.c.o: ../signal.h
+
+CMakeFiles/myhttpd.dir/signal.c.o: ../signal.c
+CMakeFiles/myhttpd.dir/signal.c.o: ../signal.h
 

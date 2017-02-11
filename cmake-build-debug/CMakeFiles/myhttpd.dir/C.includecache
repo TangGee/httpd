@@ -33,8 +33,18 @@ sys/stat.h
 -
 errno.h
 -
+signal.h
+/Users/tangtang/ClionProjects/myhttpd/signal.h
 
 /Users/tangtang/ClionProjects/myhttpd/httpd.h
 evdns.h
+-
+
+/Users/tangtang/ClionProjects/myhttpd/signal.c
+signal.h
+/Users/tangtang/ClionProjects/myhttpd/signal.h
+
+/Users/tangtang/ClionProjects/myhttpd/signal.h
+signal.h
 -
 

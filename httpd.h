@@ -9,6 +9,7 @@
 
 #define WEB_ROOT "/Users/tangtang/ClionProjects/myhttpd/webroot"
 #define ASERVER_STRING "xhttpd"
+#define USE_FORK 1
 
 typedef struct request{
     char method[255];
@@ -32,4 +33,7 @@ void not_implement(int );
 void bad_request(int );
 void cannot_execute(int ) ;
 char * getrequestFilePath(char * ,size_t ,/*out*/ const char *);
+
+void sig_chld(int signo);
+
 #endif //MYHTTPD_HTTPD_H

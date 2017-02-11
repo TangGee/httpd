@@ -11,6 +11,7 @@
 #include "httpd.h"
 #include <sys/stat.h>
 #include <errno.h>
+#include "signal.h"
 
 /**
  * TODO 在线程中调用fork是不明知的选择，应该禁止
@@ -28,10 +29,14 @@ int main() {
     struct sockaddr_in client_addr;
     socklen_t socklen;
     u_short port;
+    pid_t  pid;
+    int status;
     pthread_t thread;
 
 
     port = 0;
+
+    Signal(SIGCHLD,sig_chld);
     ser_sock = start_up(&port);
     printf("listen port:%u",port);
 
@@ -46,11 +51,18 @@ int main() {
             err_exit("accept");
         }
 
+#ifdef USE_FORK
+        if ((pid =fork())==0){
+            handle_request((void *)&client_sock);
+        }else{
+            close(client_sock);
+        }
+#else
         if (pthread_create(&thread,NULL,(void *)handle_request,(void *)&client_sock)!=0){
             err_exit("thread_create");
         }
+#endif
     }
-
     close(ser_sock);
     return 0;
 }
@@ -286,16 +298,6 @@ void execute_cgi(int client, request *pRequest) {
         dup2(in_pipe[0],STDIN_FILENO);
 
 
-//        sprintf(oo,"%d   %d",STDOUT_FILENO,STDIN_FILENO);
-//        FILE *file = fopen("/Users/tangtang/ClionProjects/myhttpd/webroot/testcgiss","w");
-//        fputs(oo,file);
-//        fclose(file);
-
-
-
-
-
-
         getrequestFilePath(filePath, sizeof(filePath),pRequest->path);
         snprintf(buf, sizeof(buf),"REQUEST_METHOD=%s",pRequest->method);
         putenv(buf);
@@ -307,12 +309,7 @@ void execute_cgi(int client, request *pRequest) {
             snprintf(buf, sizeof(buf),"CONTENT_LENGTH＝%d", contentLen);
             putenv(buf);
         }
-                FILE *file = fopen("/Users/tangtang/ClionProjects/myhttpd/webroot/testcgiss","w");
-        fputs(oo,file);
-        fclose(file);
-
-        printf("hhaahhh");
-//        execl(filePath, NULL);
+        execl(filePath, NULL);
         exit(0);
     } else{
         close(out_pipe[1]);
@@ -495,4 +492,15 @@ int readline(int fd,char *buf,size_t size){
     buf[count++]='\0';
 
     return count;
+}
+
+
+void sig_chld(int signo){
+    pid_t  pid;
+    int state;
+
+    while ((pid = waitpid(-1,&state,WNOHANG))>0){
+        printf("child %d terminated\n", pid);
+    }
+    return;
 }

@@ -4,3 +4,7 @@
 CMakeFiles/myhttpd.dir/httpd.c.o
  /Users/tangtang/ClionProjects/myhttpd/httpd.c
  /Users/tangtang/ClionProjects/myhttpd/httpd.h
+ /Users/tangtang/ClionProjects/myhttpd/signal.h
+CMakeFiles/myhttpd.dir/signal.c.o
+ /Users/tangtang/ClionProjects/myhttpd/signal.c
+ /Users/tangtang/ClionProjects/myhttpd/signal.h
